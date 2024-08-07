@@ -116,7 +116,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=gpu, lang=lang)
 
         if os.path.exists('./data/paddle.png'):
-            result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
+            [result] = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
 
         # For loading all image under a directory
         self.mImgList = []
@@ -1217,7 +1217,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def scrollRequest(self, delta, orientation):
         units = - delta / (8 * 15)
         bar = self.scrollBars[orientation]
-        bar.setValue(bar.value() + bar.singleStep() * units)
+        bar.setValue(int(bar.value()) + int(bar.singleStep()) * units)
 
     def setZoom(self, value):
         self.actions.fitWidth.setChecked(False)
@@ -1921,7 +1921,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                     QMessageBox.information(self, "Information", msg)
                     return
-                result = self.ocr.ocr(img_crop, cls=True, det=False)
+                [result] = self.ocr.ocr(img_crop, cls=True, det=False)
                 if result[0][0] != '':
                     result.insert(0, box)
                     print('result in reRec is ', result)
@@ -1965,7 +1965,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                 QMessageBox.information(self, "Information", msg)
                 return
-            result = self.ocr.ocr(img_crop, cls=True, det=False)
+            [result] = self.ocr.ocr(img_crop, cls=True, det=False)
             if result[0][0] != '':
                 result.insert(0, box)
                 print('result in reRec is ', result)
