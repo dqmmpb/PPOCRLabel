@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
                                      show_log=False)
 
         if os.path.exists('./data/paddle.png'):
-            result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
+            [result] = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
             result = self.table_ocr('./data/paddle.png', return_ocr_result_in_table=True)
 
         # For loading all image under a directory
@@ -463,7 +463,7 @@ class MainWindow(QMainWindow):
 
         createpoly = action(getStr('creatPolygon'), self.createPolygon,
                             'q', 'new', getStr('creatPolygon'), enabled=False)
-        
+
         tableRec = action(getStr('TableRecognition'), self.TableRecognition,
                         '', 'Auto', getStr('TableRecognition'), enabled=False)
 
@@ -475,7 +475,7 @@ class MainWindow(QMainWindow):
 
         saveLabel = action(getStr('saveLabel'), self.saveLabelFile,  #
                            'Ctrl+S', 'save', getStr('saveLabel'), enabled=False)
-        
+
         exportJSON = action(getStr('exportJSON'), self.exportJSON,
                             '', 'save', getStr('exportJSON'), enabled=False)
 
@@ -1292,7 +1292,7 @@ class MainWindow(QMainWindow):
     def scrollRequest(self, delta, orientation):
         units = - delta / (8 * 15)
         bar = self.scrollBars[orientation]
-        bar.setValue(bar.value() + bar.singleStep() * units)
+        bar.setValue(int(bar.value() + bar.singleStep() * units))
 
     def setZoom(self, value):
         self.actions.fitWidth.setChecked(False)
@@ -1801,7 +1801,7 @@ class MainWindow(QMainWindow):
                     self.openNextImg()
                 self.actions.saveRec.setEnabled(True)
                 self.actions.saveLabel.setEnabled(True)
-                self.actions.exportJSON.setEnabled(True) 
+                self.actions.exportJSON.setEnabled(True)
 
         elif mode == 'Auto':
             if annotationFilePath and self.saveLabels(annotationFilePath, mode=mode):
@@ -2061,7 +2061,7 @@ class MainWindow(QMainWindow):
                     msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                     QMessageBox.information(self, "Information", msg)
                     return
-                result = self.ocr.ocr(img_crop, cls=True, det=False)
+                [result] = self.ocr.ocr(img_crop, cls=True, det=False)
                 if result[0][0] != '':
                     if shape.line_color == DEFAULT_LOCK_COLOR:
                         shape.label = result[0][0]
@@ -2122,7 +2122,7 @@ class MainWindow(QMainWindow):
                 msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                 QMessageBox.information(self, "Information", msg)
                 return
-            result = self.ocr.ocr(img_crop, cls=True, det=False)
+            [result] = self.ocr.ocr(img_crop, cls=True, det=False)
             if result[0][0] != '':
                 result.insert(0, box)
                 print('result in reRec is ', result)
@@ -2151,23 +2151,26 @@ class MainWindow(QMainWindow):
         img = cv2.imread(self.filePath)
         res = self.table_ocr(img, return_ocr_result_in_table=True)
 
+        print(11111)
+        print(res)
+
         TableRec_excel_dir = self.lastOpenDir + '/tableRec_excel_output/'
         os.makedirs(TableRec_excel_dir, exist_ok=True)
         filename, _ = os.path.splitext(os.path.basename(self.filePath))
 
         excel_path = TableRec_excel_dir + '{}.xlsx'.format(filename)
-        
+
         if res is None:
             msg = 'Can not recognise the table in ' + self.filePath + '. Please change manually'
             QMessageBox.information(self, "Information", msg)
             to_excel('', excel_path) # create an empty excel
             return
-        
+
         # save res
         # ONLY SUPPORT ONE TABLE in one image
         hasTable = False
         for region in res:
-            if region['type'] == 'Table':
+            if region['type'] == 'table':
                 if region['res']['boxes'] is None:
                     msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                     QMessageBox.information(self, "Information", msg)
@@ -2192,15 +2195,15 @@ class MainWindow(QMainWindow):
                     rec_text = region['res']['rec_res'][i][0]
 
                     # polys to rectangles
-                    x1, y1 = np.min(bbox[:, 0]), np.min(bbox[:, 1])
-                    x2, y2 = np.max(bbox[:, 0]), np.max(bbox[:, 1])
+                    x1, y1 = np.min(bbox[0]), np.min(bbox[2])
+                    x2, y2 = np.max(bbox[1]), np.max(bbox[3])
                     rext_bbox = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
 
                     # save bbox to shape
                     shape = Shape(label=rec_text, line_color=DEFAULT_LINE_COLOR, key_cls=None)
                     for point in rext_bbox:
                         x, y = point
-                        # Ensure the labels are within the bounds of the image. 
+                        # Ensure the labels are within the bounds of the image.
                         # If not, fix them.
                         x, y, snapped = self.canvas.snapPointToCanvas(x, y)
                         shape.addPoint(QPointF(x, y))
@@ -2211,14 +2214,14 @@ class MainWindow(QMainWindow):
                     shapes.append(shape)
                 self.setDirty()
                 self.canvas.loadShapes(shapes)
-                
+
                 # save HTML result to excel
                 try:
                     to_excel(region['res']['html'], excel_path)
                 except:
                     print('Can not save excel file, maybe Permission denied (.xlsx is being occupied)')
                 break
-        
+
         if not hasTable:
             msg = 'Can not recognise the table in ' + self.filePath + '. Please change manually'
             QMessageBox.information(self, "Information", msg)
@@ -2246,7 +2249,7 @@ class MainWindow(QMainWindow):
                     ".xlsx is not existed")
         else:
             os.system('open ' + os.path.normpath(excel_path))
-                
+
         print('time cost: ', time.time() - start)
 
     def cellreRecognition(self):
@@ -2272,12 +2275,12 @@ class MainWindow(QMainWindow):
             # merge the text result in the cell
             texts = ''
             probs = 0. # the probability of the cell is avgerage prob of every text box in the cell
-            bboxes = self.ocr.ocr(img_crop, det=True, rec=False, cls=False)
+            [bboxes] = self.ocr.ocr(img_crop, det=True, rec=False, cls=False)
             if len(bboxes) > 0:
                 bboxes.reverse() # top row text at first
                 for _bbox in bboxes:
                     patch = get_rotate_crop_image(img_crop, np.array(_bbox, np.float32))
-                    rec_res = self.ocr.ocr(patch, det=False, rec=True, cls=False)
+                    [rec_res] = self.ocr.ocr(patch, det=False, rec=True, cls=False)
                     text = rec_res[0][0]
                     if text != '':
                         texts += text + ('' if text[0].isalpha() else ' ') # add space between english word
@@ -2346,7 +2349,7 @@ class MainWindow(QMainWindow):
         train_split, val_split, test_split = float(train_split) / 100., float(val_split) / 100., float(test_split) / 100.
         train_id = int(len(labeldict) * train_split)
         val_id = int(len(labeldict) * (train_split + val_split))
-        print('Data partition: train:', train_id, 
+        print('Data partition: train:', train_id,
               'validation:',  val_id - train_id,
               'test:', len(labeldict) - val_id)
 
@@ -2378,7 +2381,7 @@ class MainWindow(QMainWindow):
                 obb = anno['points']
                 hbb = OBB2HBB(np.array(obb)).tolist()
                 cells.append({'tokens': tokens, 'bbox': hbb})
-            
+
             # data split
             if imgid < train_id:
                 split = 'train'
@@ -2395,7 +2398,7 @@ class MainWindow(QMainWindow):
         # save json
         with open("{}/annotation.json".format(self.lastOpenDir), "w", encoding='utf-8') as fid:
             fid.write(json.dumps(json_results, ensure_ascii=False))
-        
+
         msg = 'JSON sucessfully saved in {}/annotation.json'.format(self.lastOpenDir)
         QMessageBox.information(self, "Information", msg)
 
@@ -2605,7 +2608,7 @@ class MainWindow(QMainWindow):
     def lockSelectedShape(self):
         """lock the selected shapes.
 
-        Add self.selectedShapes to lock self.canvas.lockedShapes, 
+        Add self.selectedShapes to lock self.canvas.lockedShapes,
         which holds the ratio of the four coordinates of the locked shapes
         to the width and height of the image
         """
